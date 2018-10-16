@@ -1255,6 +1255,11 @@ func resourceServiceV1() *schema.Resource {
 							Default:     100,
 							Description: "Determines ordering for multiple snippets. Lower priorities execute first. (Default: 100)",
 						},
+						"dynamic": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Description: "Snippet type, either regular (0) or dynamic (1). (Default: 0)",
+						},
 					},
 				},
 			},
@@ -3725,6 +3730,7 @@ func buildSnippet(snippetMap interface{}) (*gofastly.CreateSnippetInput, error) 
 		Name:     df["name"].(string),
 		Content:  df["content"].(string),
 		Priority: df["priority"].(int),
+		Dynamic:  df["dynamic"].(int),
 	}
 
 	snippetType := strings.ToLower(df["type"].(string))
@@ -3757,12 +3763,18 @@ func buildSnippet(snippetMap interface{}) (*gofastly.CreateSnippetInput, error) 
 func flattenSnippets(snippetList []*gofastly.Snippet) []map[string]interface{} {
 	var sl []map[string]interface{}
 	for _, snippet := range snippetList {
+
+		// Skip any dynamic snippets, we won't have their content
+		if snippet.Dynamic == 1 {
+			continue
+		}
+
 		// Convert VCLs to a map for saving to state.
 		snippetMap := map[string]interface{}{
 			"name":     snippet.Name,
 			"type":     snippet.Type,
-			"priority": int(snippet.Priority),
 			"content":  snippet.Content,
+			"priority": int(snippet.Priority),
 		}
 
 		// prune any empty values that come from the default string value in structs
